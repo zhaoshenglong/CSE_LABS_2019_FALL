@@ -1,0 +1,8 @@
+*.tgz
+*.tar.gz
+
+*.o
+*.out
+*.exe
+*.d
+*.log
