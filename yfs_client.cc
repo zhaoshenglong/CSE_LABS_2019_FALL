@@ -189,9 +189,6 @@ yfs_client::create(inum parent, const char *name, mode_t mode, inum &ino_out)
         r = IOERR;
         return r;
     }
-    // get parent attr
-    extent_protocol::attr a;
-    ec->getattr(parent, a);
 
     // get parent content;
     std::string buf;
