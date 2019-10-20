@@ -193,9 +193,6 @@ yfs_client::create(inum parent, const char *name, mode_t mode, inum &ino_out)
         r = IOERR;
         return r;
     }
-    // get parent attr
-    extent_protocol::attr a;
-    ec->getattr(parent, a);
 
     // get parent content;
     std::string buf;
@@ -210,7 +207,7 @@ yfs_client::create(inum parent, const char *name, mode_t mode, inum &ino_out)
     // store parent
     ec->put(parent, buf);
 
-    printf("create file, inum: %llu, name: %s\n", ino_out, name);
+    printf("create file, inum: %llu, name: %s\n, parent: %s", ino_out, name, buf.data());
     return r;
 }
 
