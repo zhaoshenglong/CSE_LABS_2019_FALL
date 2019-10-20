@@ -203,7 +203,7 @@ yfs_client::create(inum parent, const char *name, mode_t mode, inum &ino_out)
     // store parent
     ec->put(parent, buf);
 
-    printf("create file, inum: %llu, name: %s\n", ino_out, name);
+    printf("create file, inum: %llu, name: %s\n, parent: %s", ino_out, name, buf.data());
     return r;
 }
 
