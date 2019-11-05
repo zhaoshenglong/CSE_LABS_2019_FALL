@@ -26,6 +26,31 @@ class lock_client_cache : public lock_client {
   int rlock_port;
   std::string hostname;
   std::string id;
+
+  enum lock_state {
+    NONE,
+    FREE,
+    LOCKED,
+    ACQUIRING,
+    RELEASING
+  };
+
+  class lock_entry {
+    public:
+      lock_state state;
+      pthread_cond_t cv;
+      bool REVOKE;
+      lock_entry(){
+        state = NONE;
+        cv = PTHREAD_COND_INITIALIZER;
+        REVOKE = false;
+      };
+  };
+
+  pthread_mutex_t mutex;
+
+  std::map<lock_protocol::lockid_t, lock_entry*> locks;
+
  public:
   static int last_port;
   lock_client_cache(std::string xdst, class lock_release_user *l = 0);
