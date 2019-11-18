@@ -166,7 +166,7 @@ yfs_client::setattr(inum ino, size_t size)
         // ... do nothing
     }
 
-    printf("setattr: ino: %llu, size: %lu, asize: %lu, content: %s\n",ino, size, a.size,  data.c_str());
+    printf("setattr: ino: %llu, size: %lu, asize: %u, content: %s\n",ino, size, a.size,  data.c_str());
     ec->put(ino, data);
     
     return r;
@@ -233,10 +233,6 @@ yfs_client::mkdir(inum parent, const char *name, mode_t mode, inum &ino_out)
         return r;
     }
 
-    // get parent attr
-    extent_protocol::attr a;
-    ec->getattr(parent, a);
-
     // get parent content;
     std::string buf;
     ec->get(parent, buf);
@@ -272,7 +268,6 @@ yfs_client::lookup(inum parent, const char *name, bool &found, inum &ino_out)
     std::list<dirent> entries;
     readdir(parent, entries);
     for (std::list<struct dirent>::iterator it = entries.begin(); it != entries.end(); it++) {
-        printf("look up, file name: %s, file inum: %llu\n", it->name.c_str(), it->inum);
         if ( !it->name.compare(name) ) {
             found = true;
             ino_out = it->inum;
@@ -307,7 +302,6 @@ yfs_client::readdir(inum dir, std::list<dirent> &list)
 
     std::string name, inum;
     
-    printf("buf: \n%s\n", buf.c_str());
     int head = 0, tail = 0;
     while ( i < buf.size() ){
         head = i; 
@@ -323,7 +317,6 @@ yfs_client::readdir(inum dir, std::list<dirent> &list)
         ent.name=name;
         ent.inum=n2i(inum);
 
-        printf("read dir, dir: %llu, inum: %llu, name: %s,\n", dir, ent.inum, ent.name.c_str());
         list.push_back(ent);
 
         i = tail + 1;
@@ -357,7 +350,7 @@ yfs_client::read(inum ino, size_t size, off_t off, std::string &data)
     ec->get(ino, buf);
 
     if (off < a.size) {
-        data = buf.substr(off, size < a.size - off ? size : a.size - off);
+        data = buf.substr(off, size + off < a.size  ? size : a.size - off);
     } else {
         r = IOERR;
         return r;
@@ -544,8 +537,6 @@ yfs_client::symlink(inum parent, const char *name, const char *link, inum& ino_o
 }
 int 
 yfs_client::readlink(inum ino, std::string &link) {
-        printf("read symbolic link: %s \n", "fuck");
-
     if (ec->get(ino, link) != OK) {
         printf("read symbolic link: %s \n", link.data());
         return IOERR;
