@@ -300,7 +300,7 @@ yfs_client::read(inum ino, size_t size, off_t off, std::string &data)
     ec->get(ino, buf);
 
     if (off < a.size) {
-        data = buf.substr(off, size < a.size - off ? size : a.size - off);
+        data = buf.substr(off, size + off < a.size ? size : a.size - off);
     } else {
         r = IOERR;
         lc->release(ino);
