@@ -30,7 +30,6 @@ lock_server::acquire(int clt, lock_protocol::lockid_t lid, int &r)
   lock_protocol::status ret = lock_protocol::OK;
 	// Your lab2 part2 code goes here
 
-  printf("acquire lock[%d]\n", lid);
   pthread_mutex_lock(&mutex);
   if (cond.find(lid) == cond.end()) {
     cond[lid] = PTHREAD_COND_INITIALIZER;

@@ -247,14 +247,12 @@ inode_manager::read_file(uint32_t inum, char **buf_out, int *size)
   *size = fileIndex->size;
   int block_num = ((*size) + BLOCK_SIZE - 1) / BLOCK_SIZE;
   bool is_indirect = block_num > NDIRECT + 1;  
-  printf("\tread block info, size: %d, blocks: %d, is_indirect: %d\n", *size, block_num, is_indirect);
   *buf_out = (char *)malloc(block_num * BLOCK_SIZE);
   bzero(*buf_out, block_num * BLOCK_SIZE);
   
   if (is_indirect) {
     for (uint32_t i = 0; i < NDIRECT; i++) {
       bm->read_block(fileIndex->blocks[i], (*buf_out) + BLOCK_SIZE * i);
-      printf("read indirect block: %d, data: %s\n", fileIndex->blocks[i], (*buf_out) + (i) * BLOCK_SIZE);
     }
 
     blockid_t indirectBlock[BLOCK_SIZE / sizeof(blockid_t)];  
@@ -262,12 +260,10 @@ inode_manager::read_file(uint32_t inum, char **buf_out, int *size)
     
     for (int i = 0; i < block_num - NDIRECT; i++) {
       bm->read_block(indirectBlock[i], (*buf_out) + (NDIRECT + i) * BLOCK_SIZE);
-      printf("read indirect block, indirect block: %d: %d, data: %s\n", fileIndex->blocks[NDIRECT], indirectBlock[i], (*buf_out) + (NDIRECT + i) * BLOCK_SIZE);
     }
   } else {
     for (int32_t i = 0; i < block_num; i++) {
       bm->read_block(fileIndex->blocks[i], (*buf_out) + BLOCK_SIZE * i);
-      printf("read direct block: %d\n", fileIndex->blocks[i]);
     }
   }
 
@@ -306,7 +302,6 @@ inode_manager::write_file(uint32_t inum, const char *buf, int size)
   blockid_t blocks[MAX(oblocks_num, nblocks_num)];
   printf("start write file, size: %d\n", size);
   for (int32_t i = 0; i < MIN(NDIRECT + 1, oblocks_num); i++) {
-    printf("blocks i: %d\n", fileIndex->blocks[i]);
     blocks[i] = fileIndex->blocks[i];
   }
 
@@ -325,19 +320,16 @@ inode_manager::write_file(uint32_t inum, const char *buf, int size)
   if (nblocks_num > oblocks_num) {
     for (int32_t i = 0; i < nblocks_num - oblocks_num; i++) {
       blocks[oblocks_num + i] = bm->alloc_block();
-      printf("n > o, indirect, blocks: %d, index: %d\n", blocks[oblocks_num + i], oblocks_num + i);
     }
   } else if(nblocks_num < oblocks_num) {
     for (int32_t i = nblocks_num + is_new_indirect; i < oblocks_num; i++) {
       bm->free_block(blocks[i]);
-      printf("p > n, indirect, free block: %d\n", blocks[i]);
     }
   } else {
     printf("new blocks equals original blocks\n");
   }
 
   if (is_new_indirect) {
-    printf("is_new_indirect: %d\n", is_new_indirect);
     // write direct blocks;
     for (uint32_t i = 0; i < NDIRECT; i++) {
       bm->write_block(blocks[i], buf + i * BLOCK_SIZE);
@@ -368,7 +360,6 @@ inode_manager::write_file(uint32_t inum, const char *buf, int size)
     fileIndex->blocks[i] = blocks[i];
   }
 
-  printf("write blocks: id: %d, data: %s\n", inum, buf);
   time_t now = time(NULL);
   fileIndex->mtime=now;
   fileIndex->atime=now;

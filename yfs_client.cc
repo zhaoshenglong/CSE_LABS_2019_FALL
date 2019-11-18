@@ -164,7 +164,7 @@ yfs_client::setattr(inum ino, size_t size)
         // ... do nothing
     }
 
-    printf("setattr: ino: %llu, size: %lu, asize: %lu, content: %s\n",ino, size, a.size,  data.c_str());
+    printf("setattr: ino: %llu, size: %lu, asize: %u, content: %s\n",ino, size, a.size,  data.c_str());
     ec->put(ino, data);
     lc->release(ino);
     return r;
@@ -271,36 +271,35 @@ yfs_client::readdir(inum dir, std::list<dirent> &list)
     lc->acquire(dir);
     r = __readdir(dir, list);
     lc->release(dir);
-    return r;
-}
 
-int
-yfs_client::read(inum ino, size_t size, off_t off, std::string &data)
-{
-    int r = OK;
 
     /*
      * your code goes here.
-     * note: read using ec->get().
+     * note: you should parse the dirctory content using your defined format,
+     * and push the dirents to the list.
      */
-    lc -> acquire(ino);
+
+    // get parent attr
     extent_protocol::attr a;
-    if (ec->getattr(ino, a) != OK) {
-        r = IOERR;
-        lc->release(ino);
-        return r;
-    }
-    if (a.type == 0) {
-        r = NOENT;
-        lc->release(ino);
-        return r;
-    }
+    ec->getattr(dir, a);
+
+    // get parent content;
+    std::string buf;
+    ec->get(dir, buf);
+    
+    unsigned int i = 0;
+
+    std::string name, inum;
+    
+    int head = 0, tail = 0;
+        head = i; 
+        tail = buf.find('/', head);
 
     std::string buf;
     ec->get(ino, buf);
 
     if (off < a.size) {
-        data = buf.substr(off, size < a.size - off ? size : a.size - off);
+        data = buf.substr(off, size + off < a.size  ? size : a.size - off);
     } else {
         r = IOERR;
         lc->release(ino);
