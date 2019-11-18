@@ -271,35 +271,36 @@ yfs_client::readdir(inum dir, std::list<dirent> &list)
     lc->acquire(dir);
     r = __readdir(dir, list);
     lc->release(dir);
+    return r;
+}
 
+int
+yfs_client::read(inum ino, size_t size, off_t off, std::string &data)
+{
+    int r = OK;
 
     /*
      * your code goes here.
-     * note: you should parse the dirctory content using your defined format,
-     * and push the dirents to the list.
+     * note: read using ec->get().
      */
-
-    // get parent attr
+    lc -> acquire(ino);
     extent_protocol::attr a;
-    ec->getattr(dir, a);
-
-    // get parent content;
-    std::string buf;
-    ec->get(dir, buf);
-    
-    unsigned int i = 0;
-
-    std::string name, inum;
-    
-    int head = 0, tail = 0;
-        head = i; 
-        tail = buf.find('/', head);
+    if (ec->getattr(ino, a) != OK) {
+        r = IOERR;
+        lc->release(ino);
+        return r;
+    }
+    if (a.type == 0) {
+        r = NOENT;
+        lc->release(ino);
+        return r;
+    }
 
     std::string buf;
     ec->get(ino, buf);
 
     if (off < a.size) {
-        data = buf.substr(off, size + off < a.size  ? size : a.size - off);
+        data = buf.substr(off, size < a.size - off ? size : a.size - off);
     } else {
         r = IOERR;
         lc->release(ino);
@@ -308,9 +309,9 @@ yfs_client::readdir(inum dir, std::list<dirent> &list)
 
     lc->release(ino);
     printf("read file, ino: %llu, size: %lu, off: %lu, data: %s\n", ino, size, off, data.c_str());
-
     return r;
 }
+
 
 int
 yfs_client::write(inum ino, size_t size, off_t off, const char *data,
@@ -372,6 +373,7 @@ yfs_client::write(inum ino, size_t size, off_t off, const char *data,
     lc->release(ino);
     return r;
 }
+
 
 int yfs_client::unlink(inum parent,const char *name)
 {
