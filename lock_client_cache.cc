@@ -14,11 +14,15 @@
 int lock_client_cache::last_port = 0;
 
 int Pthread_cond_init(pthread_cond_t cv) {
-  VERIFY(pthread_cond_init(&cv, NULL) == 0);
+  int res = pthread_cond_init(&cv, NULL);
+  VERIFY(res == 0);
+  return res;
 }
 
 int Pthread_mutex_init(pthread_mutex_t mx) {
-  VERIFY(pthread_mutex_init(&mx, NULL) == 0);
+  int res = pthread_mutex_init(&mx, NULL);
+  VERIFY(res == 0);
+  return res;
 }
 
 lock_client_cache::lock_client_cache(std::string xdst, 
@@ -63,22 +67,25 @@ lock_client_cache::acquire(lock_protocol::lockid_t lid)
   // RELEASING happened when last state is free and no threads waiting for it.
   // befire this acquire, server send a revoke
   if (lock->threads.size() > 1 || lock->state == RELEASING) {
-    
+
     pthread_cond_wait(&te->cv, &mutex);
+    tprintf("[%d] Acquire Next waked lid:%llu state: %d\n", rlock_port, lid, lock->state);
     if (lock->state == NONE) {
       lock->state = ACQUIRING;
-      
+      lock->retry_receiver = pthread_self();
+      pthread_mutex_unlock(&mutex);
+      tprintf("[%d] Acquire remote lock[%llu]", rlock_port, lid);
       ret = Acquire_remote(lid);
-
+      pthread_mutex_lock(&mutex);
       if (ret == lock_protocol::OK) {
         tprintf("[%d], acquire lock ok\n", rlock_port)
         lock->state = LOCKED;
       } else {
         // wait retry signal
         tprintf("[%d], acquire lock waiting\n", rlock_port)
-        lock->retry_receiver = pthread_self();
-        pthread_cond_wait(&te->cv, &mutex);
-        lock->state = LOCKED;
+        while (lock->state != LOCKED) {
+          pthread_cond_wait(&te->cv, &mutex);
+        }
       }
     } else if (lock->state == FREE) {
       lock->state = LOCKED;  // Acquired the lock
@@ -89,18 +96,19 @@ lock_client_cache::acquire(lock_protocol::lockid_t lid)
   } else {
     if (lock->state == NONE) {
       lock->state = ACQUIRING;
- 
+      lock->retry_receiver = pthread_self();
+      pthread_mutex_unlock(&mutex);
       ret = Acquire_remote(lid);
-
+      pthread_mutex_lock(&mutex);
       if (ret == lock_protocol::OK) {
         lock->state = LOCKED;
         tprintf("[%d], acquire lock ok 0\n", rlock_port)
       } else {
         // wait retry signal
-        tprintf("[%d], acquire lock waiting 0\n", rlock_port)
-        lock->retry_receiver = pthread_self();
-        pthread_cond_wait(&te->cv, &mutex);
-        lock->state = LOCKED;
+        tprintf("[%d], acquire lock waiting 0\n", rlock_port)  
+        while (lock->state != LOCKED) {
+          pthread_cond_wait(&te->cv, &mutex);
+        }
         tprintf("[%d], acquire lock wake from wait 0\n", rlock_port)
       }
     } else if (lock->state == FREE) {
@@ -147,7 +155,7 @@ lock_client_cache::release(lock_protocol::lockid_t lid)
       lock->threads.pop_front();
       if (lock->threads.size() > 0) {
         pthread_cond_signal(&lock->threads.front()->cv);
-        tprintf("wake up next thread size: %lu ", lock->threads.size());
+        tprintf("wake up next thread size: %lu \n", lock->threads.size());
       }
     }
     pthread_mutex_unlock(&mutex);
@@ -174,17 +182,22 @@ lock_client_cache::revoke_handler(lock_protocol::lockid_t lid,
   if (lock == NULL) {
     tprintf("Revoke lock[%llu], lock not found\n", lid);
   }
-  if (lock->state == FREE) {
-    lock->state = RELEASING;
-    pthread_mutex_unlock(&mutex);
-    Release_remote(lid);
-    pthread_mutex_lock(&mutex);
-    lock->state = NONE;
-    if (lock->threads.size() > 0)
-    {
-      pthread_cond_signal(&lock->threads.front()->cv);
-    }
+  if (lock->state == FREE ) {
+    if (lock->threads.size() == 0) {
+      lock->state = RELEASING;
+      pthread_mutex_unlock(&mutex);
+      Release_remote(lid);
+      pthread_mutex_lock(&mutex);
+      lock->state = NONE;
+      if (lock->threads.size() > 0)
+      {
+        pthread_cond_signal(&lock->threads.front()->cv);
+      }
     tprintf("[%d] Revoke Free, release lock[%llu] size: %lu\n", rlock_port, lid, lock->threads.size());
+    } else {
+      lock->revoked = true;
+    }
+    
   } else if (lock->state == LOCKED || lock->state == ACQUIRING) {
     // lock->state == ACQUIRING 
     // happened when revoke_handler happens before acquire response from server
@@ -223,6 +236,7 @@ lock_client_cache::retry_handler(lock_protocol::lockid_t lid, int TTR,
     if (TTR > 0) {
       lock->revoked = true;
     }
+    lock->state = LOCKED;
     pthread_cond_signal(&lock->threads.front()->cv);
   } else {
     tprintf("[%d] Retry lock[%llu], retry_receiver & threads front not match\n",rlock_port, lid);
