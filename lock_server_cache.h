@@ -17,6 +17,7 @@ class lock_server_cache {
   enum lock_state {
     FREE = 2001,
     GRANTED,
+    GRANTING,
     REVOKING,
   };
 
@@ -38,6 +39,10 @@ class lock_server_cache {
   lock_protocol::status stat(lock_protocol::lockid_t, int &);
   int acquire(lock_protocol::lockid_t, std::string id, int &);
   int release(lock_protocol::lockid_t, std::string id, int &);
+  rlock_protocol::status Retry_remote(std::string owner, 
+                                      lock_protocol::lockid_t lid, int ttr);
+  rlock_protocol::status Revoke_remote(std::string owner, 
+                                      lock_protocol::lockid_t lid);
 };
 
 #endif

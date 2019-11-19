@@ -35,21 +35,31 @@ class lock_client_cache : public lock_client {
     RELEASING
   };
 
+  class thread_entry {
+    public:
+      pthread_t id;
+      pthread_cond_t cv;
+  };
+
   class lock_entry {
     public:
       lock_state state;
-      pthread_cond_t cv;
-      bool REVOKE;
+      std::list<thread_entry* >  threads;
+      bool revoked;
+      pthread_t retry_receiver;
+      int TIME_TO_REVOKE;
+
       lock_entry(){
         state = NONE;
-        cv = PTHREAD_COND_INITIALIZER;
-        REVOKE = false;
+        threads = std::list<thread_entry* >();
+        revoked = false;
+        TIME_TO_REVOKE = 0;
       };
   };
 
   pthread_mutex_t mutex;
 
-  std::map<lock_protocol::lockid_t, lock_entry*> locks;
+  std::map<lock_protocol::lockid_t, lock_client_cache::lock_entry*> locks;
 
  public:
   static int last_port;
@@ -59,8 +69,10 @@ class lock_client_cache : public lock_client {
   lock_protocol::status release(lock_protocol::lockid_t);
   rlock_protocol::status revoke_handler(lock_protocol::lockid_t, 
                                         int &);
-  rlock_protocol::status retry_handler(lock_protocol::lockid_t, 
+  rlock_protocol::status retry_handler(lock_protocol::lockid_t, int,
                                        int &);
+  lock_protocol::status Acquire_remote(lock_protocol::lockid_t);
+  lock_protocol::status Release_remote(lock_protocol::lockid_t);
 };
 
 
