@@ -181,7 +181,7 @@ main(int argc, char *argv[])
     if(!test || test == 1){
       test1();
     }
-
+    printf("test2\n");
     if(!test || test == 2){
       // test2
       for (int i = 0; i < nt; i++) {

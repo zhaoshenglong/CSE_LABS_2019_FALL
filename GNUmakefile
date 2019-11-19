@@ -133,8 +133,8 @@ clean_files=rpc/rpctest rpc/*.o rpc/*.d *.o *.d yfs_client extent_server lock_se
 clean: 
 	rm $(clean_files) -rf 
 
-handin_ignore=$(clean_files) core* *log
-handin_file=lab$(LAB).tgz
+handin_ignore=$(clean_files) core* *log .git .vscode
+handin_file=lab$(LAB)_515030910241..tgz
 labdir=$(shell basename $(PWD))
 handin: 
 	@bash -c "cd ../; tar -X <(tr ' ' '\n' < <(echo '$(handin_ignore)')) -czvf $(handin_file) $(labdir); mv $(handin_file) $(labdir); cd $(labdir)"

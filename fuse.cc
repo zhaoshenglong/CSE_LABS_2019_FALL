@@ -58,7 +58,7 @@ getattr(yfs_client::inum inum, struct stat &st)
         st.st_ctime = info.ctime;
         st.st_size = info.size;
         printf("   getattr -> %llu\n", info.size);
-    } else {
+    } else if (yfs->isdir(inum)){
         yfs_client::dirinfo info;
         ret = yfs->getdir(inum, info);
         if(ret != yfs_client::OK)
@@ -69,6 +69,18 @@ getattr(yfs_client::inum inum, struct stat &st)
         st.st_mtime = info.mtime;
         st.st_ctime = info.ctime;
         printf("   getattr -> %lu %lu %lu\n", info.atime, info.mtime, info.ctime);
+    } else {
+        yfs_client::fileinfo info;
+        ret = yfs->getfile(inum, info);
+        if(ret != yfs_client::OK)
+            return ret;
+        st.st_mode = S_IFLNK | 0666;
+        printf("symbolic link: \n");
+        st.st_nlink = 1;
+        st.st_atime = info.atime;
+        st.st_mtime = info.mtime;
+        st.st_ctime = info.ctime;
+        printf("   getattr -> %lu %lu %lu\n", info.atime, info.mtime, info.ctime);   
     }
     return yfs_client::OK;
 }
@@ -457,6 +469,63 @@ fuseserver_statfs(fuse_req_t req)
     fuse_reply_statfs(req, &buf);
 }
 
+/**
+ * Create a symbolic link
+ *
+ * Valid replies:
+ *   fuse_reply_entry
+ *   fuse_reply_err
+ *
+ * @param req request handle
+ * @param link the contents of the symbolic link
+ * @param parent inode number of the parent directory
+ * @param name to create
+ */
+void 
+fuseserver_symlink (fuse_req_t req, const char *link, fuse_ino_t parent,
+		     const char *name){
+    struct fuse_entry_param e;
+
+    // In yfs, timeouts are always set to 0.0, and generations are always set to 0
+    e.attr_timeout = 0.0;
+    e.entry_timeout = 0.0;
+    e.generation = 0;
+
+    yfs_client::status r;
+    yfs_client::inum ino;
+    if ((r = yfs->symlink(parent, name, link, ino)) == yfs_client::OK) {
+        e.ino = ino;
+        getattr(ino, e.attr);
+        fuse_reply_entry(req, &e);
+    } else {
+        if (r == yfs_client::EXIST) {
+            fuse_reply_err(req, EEXIST);
+        } else {
+            fuse_reply_err(req, ENOENT);
+        }
+    }
+}
+/**
+ * Read symbolic link
+ *
+ * Valid replies:
+ *   fuse_reply_readlink
+ *   fuse_reply_err
+ *
+ * @param req request handle
+ * @param ino the inode number
+ */
+void
+fuseserver_readlink (fuse_req_t req, fuse_ino_t ino) {
+    std::string link;
+
+    if (yfs->readlink(ino, link) != yfs_client::OK) {
+        fuse_reply_err(req, ENOENT);
+    }
+    fuse_reply_readlink(req, link.data());
+}
+
+
 struct fuse_lowlevel_ops fuseserver_oper;
 
 int
@@ -505,7 +574,8 @@ main(int argc, char *argv[])
      * routines here to implement symbolic link,
      * rmdir, etc.
      * */
-
+    fuseserver_oper.symlink    = fuseserver_symlink;
+    fuseserver_oper.readlink        = fuseserver_readlink;
     const char *fuse_argv[20];
     int fuse_argc = 0;
     fuse_argv[fuse_argc++] = argv[0];
