@@ -15,7 +15,9 @@ class extent_protocol {
     get,
     getattr,
     remove,
-    create
+    create,
+    getwithattr,
+    flush,
   };
 
   enum types {
@@ -30,6 +32,11 @@ class extent_protocol {
     unsigned int mtime;
     unsigned int ctime;
     unsigned int size;
+  };
+
+  struct filewithattr {
+    struct attr fileattr;
+    std::string filecontent;
   };
 };
 
@@ -54,5 +61,31 @@ operator<<(marshall &m, extent_protocol::attr a)
   m << a.size;
   return m;
 }
+
+inline unmarshall &
+operator>>(unmarshall &u, extent_protocol::filewithattr &a)
+{
+  u >> a.fileattr;
+  u >> a.filecontent;
+  return u;
+}
+
+inline marshall &
+operator<<(marshall &m, extent_protocol::filewithattr &a)
+{
+  m << a.fileattr;
+  m << a.filecontent;
+  return m;
+}
+
+
+class rextent_protocol{
+  public:
+  typedef int status;
+  enum xxstatus { OK, RPCERR };
+  enum rpc_numbers {
+    invalidate = 0x9001,
+  };
+};
 
 #endif 

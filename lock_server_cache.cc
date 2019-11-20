@@ -104,7 +104,7 @@ lock_server_cache::Retry_remote(std::string owner, lock_protocol::lockid_t lid, 
   do
   {
     ret = cl->call(rlock_protocol::retry, lid, ttr, r);
-    printf("retry from server %lu\n", ret);
+    printf("retry from server %d\n", ret);
   } while (ret != rlock_protocol::OK);
   return ret;
 }
@@ -119,7 +119,7 @@ lock_server_cache::Revoke_remote(std::string owner, lock_protocol::lockid_t lid)
   do
   {
     ret = cl->call(rlock_protocol::revoke, lid, r);
-    printf("revoke from server ret: %lu\n", ret);
+    printf("revoke from server ret: %d\n", ret);
   } while (ret != rlock_protocol::OK);
   return ret;
 }

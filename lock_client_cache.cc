@@ -43,6 +43,7 @@ lock_client_cache::lock_client_cache(std::string xdst,
   rlsrpc->reg(rlock_protocol::retry, this, &lock_client_cache::retry_handler);
 
   Pthread_mutex_init(mutex);
+
 }
 
 lock_protocol::status
@@ -118,6 +119,7 @@ lock_client_cache::acquire(lock_protocol::lockid_t lid)
       tprintf("Header acquire lock[%llu], state exception %d\n", lid, lock->state);
     }
   }
+  lec = NULL;
   pthread_mutex_unlock(&mutex);
 
   return ret;
@@ -147,6 +149,10 @@ lock_client_cache::release(lock_protocol::lockid_t lid)
       tprintf("[%d] Release lock remote[%llu], TTR: %d, state[%d]\n", rlock_port, lid, lock->TIME_TO_REVOKE, lock->state);
       lock->state = RELEASING;
       pthread_mutex_unlock(&mutex);
+      if (lec) {
+        printf("lec: %p\n", lec);
+        lec->flush(lid);
+      }
       ret = Release_remote(lid);
       pthread_mutex_lock(&mutex);
       lock->state = NONE;
@@ -186,6 +192,10 @@ lock_client_cache::revoke_handler(lock_protocol::lockid_t lid,
     if (lock->threads.size() == 0) {
       lock->state = RELEASING;
       pthread_mutex_unlock(&mutex);
+      if (lec) {
+        printf("lec: %p\n", lec);
+        lec->flush(lid);
+      }
       Release_remote(lid);
       pthread_mutex_lock(&mutex);
       lock->state = NONE;
