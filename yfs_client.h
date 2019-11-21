@@ -64,6 +64,8 @@ class yfs_client {
 
   int __lookup(inum, const char *, bool &, inum &);
   int __readdir(inum, std::list<dirent> &);
+  bool __isdir(inum);
+  bool __isfile(inum);
 };
 
 #endif 

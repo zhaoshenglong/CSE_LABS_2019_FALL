@@ -39,6 +39,7 @@ extent_client::create(uint32_t type, extent_protocol::extentid_t &id)
   } else {
     printf("extent client: create failed\n");
   }
+  printf("extent client create inode[%llu], ret: %d\n", id, ret);
   return ret;
 }
 
@@ -65,10 +66,10 @@ extent_client::get(extent_protocol::extentid_t eid, std::string &buf)
       printf("get attr failed\n");
     }
   } else {
-    buf = file->filecontent;
     file->fileattr.atime = time(NULL);
     printf("extent client: get locally: buf: %s\n", buf.c_str());
   }
+  buf.assign(file->filecontent.data(), file->fileattr.size);
   return ret;
 }
 
@@ -108,7 +109,7 @@ extent_client::getattr(extent_protocol::extentid_t eid,
 }
 
 extent_protocol::status
-extent_client::put(extent_protocol::extentid_t eid, std::string buf)
+extent_client::put(extent_protocol::extentid_t eid, std::string buf) 
 {
   int r;
   extent_protocol::status ret = extent_protocol::OK;
@@ -117,7 +118,6 @@ extent_client::put(extent_protocol::extentid_t eid, std::string buf)
   extent_protocol::filewithattr *file = clcache[eid];
   if (file == NULL) {
     if (eid != 1) {
-      printf("extent client: non root inode not in local when put(%llu)\n", eid);
     } else {
       printf("extent client: put root inode(%llu) remote \n", eid);
       extent_protocol::filewithattr file;
@@ -132,6 +132,7 @@ extent_client::put(extent_protocol::extentid_t eid, std::string buf)
     }
   } else {
     file->filecontent = buf;
+    file->fileattr.size = buf.size();
     file->fileattr.ctime = time(NULL);
     
     printf("extent client: put inode(%llu) locally, content: %s\n", eid, buf.c_str());
@@ -139,20 +140,19 @@ extent_client::put(extent_protocol::extentid_t eid, std::string buf)
   
   return ret;
 }
-
-extent_protocol::status
+extent_protocol::status 
 extent_client::remove(extent_protocol::extentid_t eid)
 {
   int r;
   extent_protocol::status ret = extent_protocol::OK;
   // Your lab2 part1 code goes here
-  // ret = cl->call(extent_protocol::remove, eid, r);
+  ret = cl->call(extent_protocol::remove, eid, r);
   extent_protocol::filewithattr *file = clcache[eid];
   if (file == NULL) {
-    printf("extent client: inode not found, remove abort\n");
+    printf("extent_client: remove: inode not exists locally\n");
   } else {
-    ret = cl->call(extent_protocol::remove, eid, r);
-    printf("extent client: remove inode(%llu) remote\n", eid);
+    printf("extent_client: remove inode(%llu) locally\n", eid);
+  
     clcache.erase(clcache.find(eid));
   }
   return ret;
@@ -167,14 +167,13 @@ extent_client::flush(extent_protocol::extentid_t eid) {
     printf("extent client: inode not found, flush abort\n");
   } else {
     ret = cl->call(extent_protocol::put, eid, file->filecontent, r);
-
+    printf("flush: data: %s\n", file->filecontent.data());
     if (ret == extent_protocol::OK) {
       clcache.erase(clcache.find(eid));
       printf("extent client: flush inode: %llu OK  \n", eid);
     } else {
       printf("extent client: flush inode: %llu failed  \n", eid);
-    }
-    
+    }    
   }
   return ret;
 }

@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include "tprintf.h"
 
-#define MAX_TIME_TO_REVOKE 3
+#define MAX_TIME_TO_REVOKE 5
 
 
 int lock_client_cache::last_port = 0;
@@ -119,7 +119,6 @@ lock_client_cache::acquire(lock_protocol::lockid_t lid)
       tprintf("Header acquire lock[%llu], state exception %d\n", lid, lock->state);
     }
   }
-  lec = NULL;
   pthread_mutex_unlock(&mutex);
 
   return ret;
@@ -149,9 +148,8 @@ lock_client_cache::release(lock_protocol::lockid_t lid)
       tprintf("[%d] Release lock remote[%llu], TTR: %d, state[%d]\n", rlock_port, lid, lock->TIME_TO_REVOKE, lock->state);
       lock->state = RELEASING;
       pthread_mutex_unlock(&mutex);
-      if (lec) {
-        printf("lec: %p\n", lec);
-        lec->flush(lid);
+      if (ec_) {
+        ec_->flush(lid);
       }
       ret = Release_remote(lid);
       pthread_mutex_lock(&mutex);
@@ -192,9 +190,8 @@ lock_client_cache::revoke_handler(lock_protocol::lockid_t lid,
     if (lock->threads.size() == 0) {
       lock->state = RELEASING;
       pthread_mutex_unlock(&mutex);
-      if (lec) {
-        printf("lec: %p\n", lec);
-        lec->flush(lid);
+      if (ec_) {
+        ec_->flush(lid);
       }
       Release_remote(lid);
       pthread_mutex_lock(&mutex);

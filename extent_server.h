@@ -21,7 +21,9 @@ class extent_server {
 
  public:
   extent_server();
-  pthread_mutex_t mx;
+  ~extent_server() {
+    printf("extent server: I am going to die~\n");
+  }
   int create(uint32_t type, extent_protocol::extentid_t &id);
   int put(extent_protocol::extentid_t id, std::string, int &);
   int get(extent_protocol::extentid_t id, std::string &);

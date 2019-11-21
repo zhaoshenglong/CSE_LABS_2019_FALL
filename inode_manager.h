@@ -17,7 +17,8 @@ typedef uint32_t blockid_t;
 class disk {
  private:
   unsigned char blocks[BLOCK_NUM][BLOCK_SIZE];
-
+  pthread_mutex_t mx;
+  
  public:
   disk();
   void read_block(uint32_t id, char *buf);
@@ -36,10 +37,10 @@ class block_manager {
  private:
   disk *d;
   std::map <uint32_t, int> using_blocks;
+  pthread_mutex_t mx;
  public:
   block_manager();
   struct superblock sb;
-
   uint32_t alloc_block();
   void free_block(uint32_t id);
   void read_block(uint32_t id, char *buf);
@@ -81,7 +82,7 @@ class inode_manager {
   block_manager *bm;
   struct inode* get_inode(uint32_t inum);
   void put_inode(uint32_t inum, struct inode *ino);
-
+  pthread_mutex_t mx;
  public:
   inode_manager();
   uint32_t alloc_inode(uint32_t type);
