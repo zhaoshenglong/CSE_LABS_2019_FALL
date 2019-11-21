@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include "tprintf.h"
 
-#define MAX_TIME_TO_REVOKE 3
+#define MAX_TIME_TO_REVOKE 5
 
 
 int lock_client_cache::last_port = 0;
